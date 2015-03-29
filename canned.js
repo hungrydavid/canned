@@ -146,6 +146,15 @@ Canned.prototype._extractOptions = function (data, httpObj) {
 
   opts.data = JSON.parse(this.getVariableResponse(data, httpObj.content, httpObj.headers));
 
+  var responseObject = JSON.parse(opts.data)
+
+  if(responseObject._statusCode) {
+    opts.statusCode = responseObject._statusCode
+    delete responseObject._statusCode
+
+    opts.data = JSON.stringify(responseObject)
+  }
+
   return opts
 }
 
@@ -303,7 +312,7 @@ Canned.prototype.responseFilter = function (req, res) {
     })
     req.on('end', function () {
       var responderBody = querystring.parse(body);
-      if (req.headers && req.headers['content-type'] === 'application/json') {
+      if (req.headers && req.headers['content-type'].match('application/json')) {
         try {
           responderBody = JSON.parse(body)
         } catch (e) {
