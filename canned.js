@@ -40,7 +40,6 @@ function matchFileWithExactQuery(matchString, fname, queryString, method) {
 }
 
 function getFileFromRequest(httpObj, files) {
-
   if (!files) return false
 
   var m, i, e, matchString, matchPattern, fileMatch
@@ -254,6 +253,45 @@ Canned.prototype.respondWithAny = function (httpObj, files) {
   })
 }
 
+var temp
+var filesTemp
+
+function readDir (httpObj, that) {
+
+  fs.readdir(httpObj.path, function (err, files) {
+    fs.stat(httpObj.path + '/' + httpObj.dname, function (err, stats) {
+      if (err) {
+        that._responseForFile(httpObj, files, function (err, resp) {
+          if (err) {
+
+            if(httpObj.pathname[httpObj.pathname.length - 1] === "_any_") {
+              httpObj.pathname[httpObj.pathname.length - 1] = temp
+              httpObj.path = that.dir + httpObj.pathname.join('/')
+
+              that.respondWithAny(httpObj, filesTemp);
+            } else {
+              filesTemp = files
+              temp = httpObj.pathname[httpObj.pathname.length - 1]
+              httpObj.pathname[httpObj.pathname.length - 1] = "_any_"
+              httpObj.path = that.dir + httpObj.pathname.join('/')
+              readDir(httpObj, that)
+            }
+          } else {
+            that._logHTTPObject(httpObj)
+            resp.send()
+          }
+        })
+      } else {
+        if (stats.isDirectory()) {
+          that.respondWithDir(httpObj);
+        } else {
+          new Response('html', '', 500, httpObj.res).send();
+        }
+      }
+    })
+  })
+}
+
 Canned.prototype.responder = function(body, req, res) {
   var httpObj = {}
   var that = this
@@ -277,26 +315,7 @@ Canned.prototype.responder = function(body, req, res) {
     return response.send()
   }
 
-  fs.readdir(httpObj.path, function (err, files) {
-    fs.stat(httpObj.path + '/' + httpObj.dname, function (err, stats) {
-      if (err) {
-        that._responseForFile(httpObj, files, function (err, resp) {
-          if (err) {
-            that.respondWithAny(httpObj, files);
-          } else {
-            that._logHTTPObject(httpObj)
-            resp.send()
-          }
-        })
-      } else {
-        if (stats.isDirectory()) {
-          that.respondWithDir(httpObj);
-        } else {
-          new Response('html', '', 500, httpObj.res).send();
-        }
-      }
-    })
-  })
+  readDir(httpObj, that)
 }
 
 Canned.prototype.responseFilter = function (req, res) {
